@@ -1,0 +1,127 @@
+#include <SwitecX25.h>
+#include <MicroView.h>
+#include <TimerOne.h>
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// configurables
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define TEMP_RESOLUTION ((float)0.25)   // °C/mv
+#define TEMP_OFFSET     ((float)0.0)    // °C
+
+#define TEMP_GAUGE_MIN  0 //°C
+#define TEMP_GAUGE_MAX  1000 //°C
+
+#define GAUGE_DEGREES   315
+#define GAUGE_STEPS     (GAUGE_DEGREES*3)
+#define GAUGE_MIN       0.0
+#define GAUGE_MAX       1000.0
+#define GAUGE_DIR_FWD   0
+#define GAUGE_DIR_REV   1
+#define GAUGE_DIR       GAUGE_DIR_REV
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// variables
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+int sensorPin = A0;                 // pin to use for analog readings
+int sensorMv = 0;                   // filtered voltage to use for calculations
+double temperature = 0;             // calcluated temperature from sensor
+int motorPos = 0;       
+unsigned long runtime = 0;
+
+double currentPos = 0;
+double nextPos = 0;
+
+SwitecX25 motor1( GAUGE_STEPS, 2, 3, 5, 6 );
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// function prototypes
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+void TimerInterrupt( void );
+
+void MicroViewDisplay_Init( void );
+void MicroViewDisplay_Update( double Temperature, int Voltage );
+void MicroViewDisplay_UpdateScreen( void );
+void DisplayTemperature( double Temperature );
+void DisplayVoltage( int Voltage );
+
+int GetMotorPosition( double Value, double Min, double Max );
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// main functions
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+void setup( void )
+{
+    Timer1.initialize(1000); // interrupt every 1000us, 1ms
+    Timer1.attachInterrupt(TimerInterrupt);
+    
+    MicroViewDisplay_Init( );
+
+    motor1.zero( );
+}
+
+void loop( ) 
+{
+    // get sensor reading and convert the temperature
+    sensorMv = AverageSensorValue( analogRead( sensorPin ) );
+    temperature = (((double)sensorMv * TEMP_RESOLUTION) + TEMP_OFFSET);
+
+
+    // do the stepper motor shit
+
+   
+
+    
+    motor1.updateBlocking( );
+
+
+    // update display with new values
+    MicroViewDisplay_Update( temperature, sensorMv );
+
+    //motor1.update( );
+}
+
+void TimerInterrupt( void )
+{
+    runtime++;
+
+    //if ((runtime % 25) == 0)
+    {
+       // motorPos = GetMotorPosition( temperature, GAUGE_MIN, GAUGE_MAX );
+        
+    }
+    if ((runtime % 100) == 0)
+    {
+        MicroViewDisplay_UpdateScreen( );
+        motor1.setPosition( GetMotorPosition( temperature, GAUGE_MIN, GAUGE_MAX ) );
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// function implementations
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+int GetMotorPosition( double Value, double Min, double Max )
+{
+    int out;
+    if (Value > Max)
+        Value = Max;
+    if (Value < Min)
+        Value = Min;
+    Value = (Value - Min) / (Max - Min);
+    if (GAUGE_DIR == GAUGE_DIR_REV)
+    {
+        Value = (1.0 - Value);
+    }
+    out = (int)(((double)GAUGE_STEPS * Value) + 0.5);
+    return out;
+
+}
+
